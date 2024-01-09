@@ -127,4 +127,218 @@ module.exports = new UserService()
 安装对应插件
 npm install mysql2 sequelize
 连接数据库mysql
+在src下创建db文件夹，文件夹下创建js文件用于数据库的链接
+const {Sequelize} = require("sequelize")
+const {
+MYSQL_HOST,
+MYSQL_USER,
+MYSQL_PWD,
+MYSQL_DB,
+} = require("../config/config.default")
+const seq = new Sequelize(MYSQL_DB,MYSQL_USER,MYSQL_PWD,{
+  host:MYSQL_HOST,
+  dialect:"mysql"
+})
+module.exports = seq
+
+配置文件
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_USER=root
+MYSQL_PWD=123456
+MYSQL_DB=db_test
+
+创建模型：
+在src下创建model文件夹，在其下创建用户模块模型 user.model.js
+const { DataTypes } = require('sequelize');
+const seq = require("../db/db")
+
+const User = seq.define('jcy_user', {
+  //id会被自动创建不用创建
+  // 在这里定义模型属性
+  username: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique:true,
+    comment:"同户名"
+
+  },
+  password: {
+    type: DataTypes.STRING,
+    // allowNull 默认为 true
+    allowNull: false,
+    comment:"密码"
+  },
+  role: {
+    type: DataTypes.BOOLEAN,
+    // allowNull 默认为 true
+    allowNull: false,
+    defaultValue:0,
+    comment:"0不是管理员（默认），1是管理员"
+  }
+}, {
+  // 这是其他模型参数
+});
+//会判断数据库里是否有这张表没有就创建
+// User.sync({force:true}) //有表可以不使用该行代码
+module.exports = User
+
+在controller层会先对数据进行检查，合法才会放行，调用数据库后，也会对调用结果进行判断，然后包装返回结果
+class UserController{
+  async register(ctx,next){
+    const {username,password} = ctx.request.body
+    if(!username || !password){
+      console.error("用户名或密码为空",ctx.request.body)
+      ctx.status = 400;
+      ctx.body = {
+        code:"10001",//前两位表示模块，后面几位表示错误的具体类型
+        message:"用户名或密码为空",
+        result:""
+      }
+    }
+    //如果用户存在，就不创建
+    const findRes = await userService.findUserInfo(username,password)
+    if(findRes==null){
+      const res = await userService.createUser(username,password)
+      if(res){
+        ctx.body = {
+          code:0,
+          message:"注册成功",
+          result:{
+            id:res.id,
+            username:res.username,
+            role:res.role,
+          }
+  
+        }
+      }else{
+        ctx.body = "注册失败"
+      }
+    }else{
+      ctx.status = 409
+      ctx.body = {
+        code:10001,
+        message:"用户已经存在",
+        result:""
+
+      }
+    }
+九、中间件抽离
+在src下创建middleware文件夹，在其下创建user模块中间件 user.middleware.js，这个文件由一个个方法组成
+//创建用户模块中间件
+const {findUserInfo} = require("../service/user.service")
+//导入用户错误信息
+const {userExist,userFormateError} = require("../constant/err.type")
+const userValidator = async (ctx,next)=>{
+  const {username,password} = ctx.request.body
+  if(!username || !password){
+    console.error("用户名或密码为空",ctx.request.body)
+    ctx.app.emit("error",userFormateError,ctx)
+    // ctx.status = 400;
+    // ctx.body = {
+    //   code:"10001",//前两位表示模块，后面几位表示错误的具体类型
+    //   message:"用户名或密码为空",
+    //   result:""
+    // }
+    return 
+  }
+  await next()
+}
+
+const verifyUser = async (ctx,next)=>{
+  const {username} = ctx.request.body;
+  const findRes = await findUserInfo(username)
+  if(findRes){
+    // ctx.status = 409
+    // ctx.body = {
+    //   code:10001,
+    //   message:"用户已经存在",
+    //   result:""
+    // }
+    console.error("用户已经存在",username)
+    ctx.app.emit('error',userExist,ctx)
+    return
+  }else{
+    await next()
+  }
+}
+
+module.exports = {
+  userValidator,
+  verifyUser
+}
+
+这些中间件可以调用接口的时候使用
+router.post("/register",userValidator,verifyUser,userController.register)
+
+
+十、错误处理
+在src下创建创建常量文件夹constant，在其下创建用户模块的常量错误信息
+user.type.js
+module.exports = {
+  userFormateError:{
+    code:"10001",
+    message:"用户名或密码为空",
+    result:""
+  },
+  userExist:{
+    code:"10002",
+    message:"用户已经存在",
+    result:""
+  },
+  userRegistError:{
+      code:10003,
+      message:"用户注册错误",
+      result:""
+  }
+}
+
+在发生错误的地方注册错误信息
+ctx.app.emit('error',userExist,ctx)
+
+const verifyUser = async (ctx,next)=>{
+  const {username} = ctx.request.body;
+  const findRes = await findUserInfo(username)
+  if(findRes){
+    // ctx.status = 409
+    // ctx.body = {
+    //   code:10001,
+    //   message:"用户已经存在",
+    //   result:""
+    // }
+    console.error("用户已经存在",username)
+    ctx.app.emit('error',userExist,ctx)
+    return
+  }else{
+    await next()
+  }
+}
+
+
+errorHandler里面包含所有的错误码，根据错误码，得到不同的状态码
+errorHandler.js
+module.exports = (err,ctx)=>{
+  let status = 500
+  switch(err.code){
+    case "10001":
+      status = 400
+    break
+    case "10002":
+      status = 400
+    break
+    default:
+      status:500
+  }
+  ctx.status = status;
+  ctx.body = err;
+}
+
+在app.js文件中统一处理
+// 统一错误处理
+app.on("error",errorHandler) 
+
+十一、密码加密
+在密码保存在数据库之前需要对密码进行加密
+bcryptjs
+npm install bcryptjs
 

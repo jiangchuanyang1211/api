@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/jiangchuanyang1211/api#readme",
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "dotenv": "^16.3.1",
     "koa": "^2.15.0",
     "koa-body": "^6.0.1",
