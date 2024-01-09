@@ -4,7 +4,8 @@
   "description": "koa项目",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon src/main.js"
   },
   "repository": {
     "type": "git",
@@ -16,5 +17,16 @@
   "bugs": {
     "url": "https://github.com/jiangchuanyang1211/api/issues"
   },
-  "homepage": "https://github.com/jiangchuanyang1211/api#readme"
+  "homepage": "https://github.com/jiangchuanyang1211/api#readme",
+  "dependencies": {
+    "dotenv": "^16.3.1",
+    "koa": "^2.15.0",
+    "koa-body": "^6.0.1",
+    "koa-router": "^12.0.1",
+    "mysql2": "^3.7.0",
+    "sequelize": "^6.35.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
 }
