@@ -4,7 +4,7 @@ const bcrypt = require("bcryptjs")
 //创建用户模块中间件
 const {findUserInfo} = require("../service/user.service")
 //导入用户错误信息
-const {userExist,userFormateError} = require("../constant/err.type")
+const {userExist,userFormateError,userNotExist,userLoginError,userPwdError} = require("../constant/err.type")
 const userValidator = async (ctx,next)=>{
   const {username,password} = ctx.request.body
   if(!username || !password){
@@ -48,8 +48,39 @@ const bcryptPwd = async (ctx,next)=>{
   await next()
 }
 
+
+// 登录时验证中间件
+const verifyLogin = async (ctx,next)=>{
+   //先验证用户是否存在
+   const {username,password} = ctx.request.body
+    try {
+      const userInfo = await findUserInfo({username});
+      if(!userInfo){
+       console.error("用户名不存在",username)
+       ctx.app.emit("error",userNotExist,ctx)
+       return
+      }
+      const res = await bcrypt.compare(password,userInfo.password)
+      console.log(res+"=========================================")
+      if(!res){
+        console.error("密码错误",username)
+       ctx.app.emit("error",userPwdError)
+       return 
+      }
+
+      await next()
+      
+    } catch (error) {
+      console.error("用户登录失败",error)
+       ctx.app.emit("error",userLoginError,ctx)
+    }
+   
+  //  比对密码是否一致
+}
+
 module.exports = {
   userValidator,
   verifyUser,
-  bcryptPwd
+  bcryptPwd,
+  verifyLogin
 }

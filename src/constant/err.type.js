@@ -10,8 +10,64 @@ module.exports = {
     result:""
   },
   userRegistError:{
-      code:10003,
+      code:"10003",
       message:"用户注册错误",
       result:""
+  },
+  userNotExist:{
+    code:"10004",
+    message:"用户不存咋",
+    result:""
+  },
+  userLoginError:{
+    code:"10005",
+    message:"用户登录失败",
+    result:""
+  },
+  userPwdError:{
+    code:"10006",
+    message:"密码错误",
+    result:""
+  },
+  TokenExpiredError:{
+    code:"10101",
+    message:"token已过期",
+    result:""
+  },
+  jsonWebTokenError:{
+    code:"10102",
+    message:"无效的token",
+    result:""
+  },
+  hasNotAdminPermission:{
+    code:"10103",
+    message:"没有管理员相关权限",
+    result:""
+  },
+  fileUploadError:{
+    code:"10201",
+    message:"图片上传失败",
+    result:""
+  },
+  fileFormateError:{
+    code:"10202",
+    message:"图片格式不支持",
+    result:""
+  },
+  goodFormateError:{
+    code:"10203",
+    message:"商品信息格式错误",
+    result:""
+  },
+  goodPublishError:{
+    code:"10204",
+    message:"商品发布失败",
+    result:""
+  },
+  invalidGoodId:{
+    code:"10205",
+    message:"商品id不存在",
+    result:""
   }
+
 }

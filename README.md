@@ -342,3 +342,287 @@ app.on("error",errorHandler)
 bcryptjs
 npm install bcryptjs
 
+注意：在提交代码时发生了报错
+fatal: unable to access 'https://github.com/g1211/api.git/': Failed to connect to github.com port 443: Connection was aborted
+网上找解决方法发现是git默认限制推送的大小，运行命令更改限制大小即可解决
+git config --global http.postBuffer 524288000
+
+用户登录处理
+
+十二、用户认证
+登录成功后，服务端给用户办法一个令牌token，用户在以后的每一次请求中都携带这个令牌
+jwt:jsonwebtoken
+   header:头部
+   playload：载荷
+   signature：签名
+安装 npm install jsonwebtoken
+async login(ctx,next){
+    const {username} = ctx.request.body;
+    // 1.获取用户信息（在token的playload中，记录id，username，role
+    try {
+      const {password, ...resUser} = await userService.findUserInfo({username})
+      ctx.body = {
+        code:0,
+        message:"用户登录成功",
+        result:{
+          token:jwt.sign(resUser,process.env.JWT_SCRECT,{expiresIn:'1d'})
+        }
+      }
+    } catch (error) {
+      console.error("用户登录失败",error)
+    }
+  }
+}
+
+十三、修改密码
+写一个关于权限认证的中间件auth.middleware.js
+  const jwt = require("jsonwebtoken")
+  const {tokenExpiredError,jsonWebTokenError} = require("../constant/err.type")
+  const auth = async (ctx,next)=>{
+    const {authorization} = ctx.request.header
+    const token = authorization.replace("Bearer ","")
+    try {
+      //user里面包含 id，username，role
+      var user = jwt.verify(token, process.env.JWT_SCRECT);
+      ctx.state.user= user
+    } catch (error) {
+      switch(error.name){
+        case 'TokenExpiredError':
+          console.error("token已经过期",error)
+          return ctx.app.emit("error",tokenExpiredError,ctx)
+        case "JsonWebTokenError":
+          console.error("无效的token",error)
+          return ctx.app.emit("error",jsonWebTokenError,ctx)
+
+      }
+    }
+    await next()
+  }
+
+  module.exports = {
+    auth
+  }
+在每次调用接口时验证
+router.patch("/change",auth,bcryptPwd,userController.changePwd)
+在servce层添加修改用户操作数据库的方法
+  async changeUser({id,username,password,role}){
+    const whereOpt = {id}
+    const newUser = {}
+    username && Object.assign(newUser,{username});
+    password && Object.assign(newUser,{password})
+    role && Object.assign(newUser,{role})
+    const res = await User.update(newUser, {
+      where: whereOpt
+    });
+
+    console.log("结果"+res)
+    return res;
+  }
+
+  在controller层调用
+  async changePwd(ctx,next){
+    console.log(ctx)
+    
+    // 获取数据
+    const id = ctx.state.user.id;
+    const {password} = ctx.request.body
+    //操作数据库
+    try {
+      await userService.changeUser({id,password})
+      ctx.body = {
+        code:0,
+        message:"密码修改成功",
+        result:""
+      }
+    } catch (error) {
+      console.error("密码修改失败",error)
+    }
+  }
+
+  十四、商品模块（/goods）
+在router文件夹下保存的都是各个模块的路由，因为在App中，需要将每个模块都导入，这样太过于麻烦，
+所以，在ronter文件夹下创建index.js文件，来注册所有路由
+const fs = require("fs");
+console.log(fs)
+const Router = require("koa-router")
+const router = new Router();
+fs.readdirSync(__dirname).forEach(file=>{
+  if(file!="index.js"){
+    const r = require("./"+file);
+    router.use(r.routes())
+  }
+})
+
+module.exports = router
+在app中只需要注册index就可
+const router = require("../router/index")
+//router.allowedMethods()可以处理不支持的请求例如link，会给接口返回502，如果是请求方式不同会返回method not allowed
+app.use(router.routes()).use(router.allowedMethods())
+
+
+这个接口编写过程和之前的接口相似：
+在app.js中添加
+// 文件上传s
+app.use(koaBody({
+  multipart:true,
+  formidable:{
+    uploadDir:path.join(__dirname,"../upload"),//在配置选项中尽量使用绝对路径，在option中的相对路径不是相对当前路径，是相对当前运行环境，找不到当前路径
+    keepExtensions:true,
+  }
+}))
+// 文件上传e
+//router.allowedMethods()可以处理不支持的请求例如link，会给接口返回502，如果是请求方式不同会返回method not allowed
+app.use(router.routes()).use(router.allowedMethods())
+
+controller
+async upload(ctx,next){
+    const {file} = ctx.request.files
+    if(file){
+      ctx.body = {
+        code:0,
+        message:"文件上传成功",
+        result:{
+          imgUrl:path.basename(file.path)
+        }
+      }
+    }else{
+      return ctx.app.emit("error",fileUploadError,ctx)
+    }
+  }
+
+  添加权限中间件
+  const isAdmin = async (ctx,next)=>{
+  const {role} = ctx.state.user
+  console.log("role",role)
+  if(!role){
+    console.error("该用户没有管理员的权限")
+    return ctx.app.emit("error",hasNotAdminPermission,ctx)
+  }
+  await next()
+}
+将上传的文件变成静态资源
+安装koa-static
+npm install koa-static
+在app.js中配置koa-static
+//处理静态资源
+app.use(koaStatic(path.join(__dirname,"../upload")))
+之后就可以直接访问图片
+http://127.0.0.1:8000/+图片名称
+
+
+商品上传：
+安装中间件 koa-parameter 作为参数校验
+npm install koa-parameter
+在app中添加
+// 参数校验
+app.use(parameter(app))
+
+将校验方法做成中间件
+const validateGood = async (ctx,next)=>{
+  console.log("检验参数类型")
+  try {
+    ctx.verifyParams({
+      goods_name:{
+        type:'string',
+        required:true
+      },
+      goods_price:{
+        type:'number',
+        required:true
+      },
+      goods_left:{
+        type:'number',
+        required:true
+      },
+      goods_img:{
+        type:'string',
+        required:true
+      }
+    })
+  } catch (error) {
+    console.error(error)
+    goodFormateError.result = error
+    return ctx.app.emit("error",goodFormateError,ctx)
+  }
+  await next()
+}
+
+商品修改和上传具体键代码
+商品删除：这里商品删除不建议直接删除数据库数据，可以设置字段标识为已经删除
+软删除：
+上架下架：
+在model中添加一个字段 paranoid:true
+const Good = seq.define('jcy_goods', {
+  goods_name: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique:true,
+    comment:"商品名称"
+
+  },
+  goods_left: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    unique:true,
+    comment:"库存"
+
+  },
+  goods_price: {
+    type: DataTypes.FLOAT,
+    allowNull: false,
+    unique:true,
+    comment:"商品价格"
+
+  },
+  goods_img: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique:true,
+    comment:"商品图片"
+
+  },
+ 
+
+
+},
+{
+  paranoid:true
+})
+//会判断数据库里是否有这张表没有就创建
+// Good.sync({force:true}) //有表可以不使用该行代码
+module.exports = Good
+
+
+如果当条数据被删除了，deletedAt会更新时间戳，表示当前商品已经下架
+下架：/goods/1/off
+async removeGood(id){
+    const res = await Good.destroy({
+      where: {
+        id: id
+      }
+    });
+    return res;
+  }
+
+
+上架：/goods/1/on
+async restoreGood(id){
+    const res = await Good.restore({
+      where: {
+        id: id
+      }
+    });
+    return res;
+  }
+
+商品列表：
+
+
+
+
+
+
+
+
+
+

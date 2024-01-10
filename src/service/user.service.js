@@ -22,6 +22,7 @@ class UserService{
       attributes:["id","username","password","role"],
       where:whereOpt
     })
+    console.log(whereOpt)
     return res?res.dataValues:null
 
   }
@@ -33,6 +34,19 @@ class UserService{
 
   }
 
+  async changeUser({id,username,password,role}){
+    const whereOpt = {id}
+    const newUser = {}
+    username && Object.assign(newUser,{username});
+    password && Object.assign(newUser,{password})
+    role && Object.assign(newUser,{role})
+    const res = await User.update(newUser, {
+      where: whereOpt
+    });
+
+    console.log("结果"+res)
+    return res;
+  }
 
 }
 module.exports = new UserService()

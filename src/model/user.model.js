@@ -8,7 +8,7 @@ const User = seq.define('jcy_user', {
     type: DataTypes.STRING,
     allowNull: false,
     unique:true,
-    comment:"同户名"
+    comment:"用户名"
 
   },
   password: {
