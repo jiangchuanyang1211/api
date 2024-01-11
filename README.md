@@ -645,7 +645,7 @@ async restoreGood(id){
     };
   }
 
-购物车：
+十五、购物车模块
 购物车表：goods_id,user_id,number,selected
 默认number为1，selected为true，
 添加购物车时会判断购物车中有没有这个商品，如果没有加入，有就把number加1
@@ -762,6 +762,52 @@ app.use(koaBody({
   },
   parsedMethods:['POST','PATCH',"PUT","DELETE"]
 }))
+
+十六、地址模块
+地址字段：
+id，user_id,consignee,phone,address,is_default
+新增地址
+async createAddress({user_id,consignee,phone,address,is_default}){
+    const opt = {user_id,consignee,phone,address}
+    is_default!==undefined && Object.assign(opt,{is_default});
+    const addr = await Address.create(opt)
+    // 根据返回结果判断是否注册成功
+      console.log("地址创建成功",addr)
+      return addr?.dataValues
+     
+  }
+查询地址
+  async findAddresses(user_id){
+    return await Address.findAll({
+      where:{user_id}
+    })
+  }
+
+修改地址：
+async updateAddresses(id,user_id,consignee,phone,address,is_default){
+    const opt = {consignee,phone,address}
+    is_default!==undefined && Object.assign(opt,{is_default});
+    // 如果是将新增加的地址设置为默认地址，就需要将之前的默认地址改为false
+    if (is_default) {
+      await Address.update({ is_default: false }, { where: { user_id: user_id, is_default: true } });
+    }
+    const res = await Address.update(opt,{
+      where:{id}
+    })
+    // 根据返回结果判断是否注册成功
+      console.log("地址修改成功",res)
+      return res
+  }
+
+ 删除地址：
+ async removeAddresses(id){
+    return await Address.destroy({
+      where:{id}
+    })
+  }
+
+
+
 
 
 
