@@ -13,7 +13,9 @@ app.use(koaBody({
   formidable:{
     uploadDir:path.join(__dirname,"../upload"),//在配置选项中尽量使用绝对路径，在option中的相对路径不是相对当前路径，是相对当前运行环境，找不到当前路径
     keepExtensions:true,
-  }
+    
+  },
+  parsedMethods:['POST','PATCH',"PUT","DELETE"]
 }))
 
 // 参数校验

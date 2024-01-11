@@ -1,7 +1,7 @@
-const Good = require("../model/good.model")
+const Goods = require("../model/good.model")
 class GoodService{
   async createGood(goods_name,goods_price,goods_left,goods_img){
-    const good = await Good.create({goods_name,goods_price,goods_left,goods_img})
+    const good = await Goods.create({goods_name,goods_price,goods_left,goods_img})
     // 根据返回结果判断是否注册成功
       console.log("商品写入数据成功",good)
       return good?.dataValues
@@ -15,7 +15,7 @@ class GoodService{
     goods_price && Object.assign(newGood,{goods_price})
     goods_left && Object.assign(newGood,{goods_left})
     goods_img && Object.assign(newGood,{goods_img})
-    const res = await Good.update(newGood, {
+    const res = await Goods.update(newGood, {
       where: whereOpt
     });
 
@@ -24,7 +24,7 @@ class GoodService{
   }
 // 商品下架
   async removeGood(id){
-    const res = await Good.destroy({
+    const res = await Goods.destroy({
       where: {
         id: id
       }
@@ -34,7 +34,7 @@ class GoodService{
 
   // 商品上架
   async restoreGood(id){
-    const res = await Good.restore({
+    const res = await Goods.restore({
       where: {
         id: id
       }
@@ -56,7 +56,7 @@ class GoodService{
 
     // 查询合并
     const offset = (pageNum-1)*pageSize;
-    const {rows,count} = await Good.findAndCountAll({
+    const {rows,count} = await Goods.findAndCountAll({
       offset:offset,
       limit:pageSize*1,
       attributes:["id","goods_name","goods_price","goods_left","goods_img"],

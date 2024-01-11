@@ -616,6 +616,158 @@ async restoreGood(id){
   }
 
 商品列表：
+查询商品需要传入pagesize，和pagenum
+// 商品查询
+  async findGoods(pageNum,pageSize){
+    // 获取总数和分页数据
+    // const count = await Good.count();
+    // console.log(count);
+    // const offset = (pageNum-1)*pageSize;
+    // const rows = await Good.findAll({
+    //   offset:offset,
+    //   limit:pageSize*1,
+    //   attributes:["id","goods_name","goods_price","goods_left","goods_img"],
+    // })
+
+    // 查询合并
+    const offset = (pageNum-1)*pageSize;
+    const {rows,count} = await Good.findAndCountAll({
+      offset:offset,
+      limit:pageSize*1,
+      attributes:["id","goods_name","goods_price","goods_left","goods_img"],
+    })
+
+    return {
+      pageNum,
+      pageSize,
+      total:count,
+      list:rows
+    };
+  }
+
+购物车：
+购物车表：goods_id,user_id,number,selected
+默认number为1，selected为true，
+添加购物车时会判断购物车中有没有这个商品，如果没有加入，有就把number加1
+建表
+const { DataTypes } = require('sequelize');
+const seq = require("../db/db")
+  const Cart = seq.define('jcy_carts', {
+    goods_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      comment:"商品id"
+  
+    },
+    user_id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      comment:"用户id"
+  
+    },
+    number: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue:1,
+      comment:"商品数量"
+  
+    },
+    selected:{
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue:true,
+      comment:"是否被选中"
+    }
+    
+   
+  
+  
+  })
+  //会判断数据库里是否有这张表没有就创建
+  // Cart.sync({force:true}) //有表可以不使用该行代码
+module.exports = Cart;
+
+操作数据库
+async createOrUpdateCart(user_id,goods_id){
+      const res = await Cart.findOne({
+        where:{
+          [Op.and]:{
+            user_id,goods_id
+          }
+        }
+      })
+      if(res){
+        // 如果购物车已经存在的话将数量加一
+       await  res.increment("number");
+       return await res.reload()
+      }else{
+        return await Cart.create({
+          user_id,goods_id
+        })
+      }
+  }
+
+  购物车列表：
+  这里需要和Good模型联表查询
+在Cart模型中加入代码
+ Cart.belongsTo(Good,{
+    foreignKey:"goods_id",
+    as:"goods_info"//在good表中查出的数据别名为goods_info
+  })
+
+在操作数据库时方法
+  async findCarts(pageNum,pageSize){
+    const offset = (pageNum-1)*pageSize;
+    const {rows,count} = await Cart.findAndCountAll({
+      offset:offset,
+      limit:pageSize*1,
+      attributes:["id","number","selected"],
+      include:{
+        model:Goods,
+        <!-- 这里和Cart模型中对应别名 -->
+        as:"goods_info",
+        attributes:["id","goods_name","goods_price","goods_left","goods_img"],
+      }
+    })
+
+    return {
+      pageNum,
+      pageSize,
+      total:count,
+      list:rows
+    };
+  }
+}
+
+购物车更新接口：字段：number，selected
+async updateCarts({id,number,selected}){
+    console.log(id,number,selected)
+    const res = await Cart.findByPk(id);
+    if(!res)return "";
+    number !=undefined ?(res.number=number):""
+    selected !=undefined ?(res.selected=selected):""
+    
+    return await res.save();
+  }
+
+删除购物车
+koa-body这个中间件只将post，patch，和put方法的参数挂载到ctx.request.body上，别的方法不挂载，需要配置parseMethods
+在App中配置加上parsedMethods:['POST','PATCH',"PUT","DELETE"]
+app.use(koaBody({
+  multipart:true,
+  formidable:{
+    uploadDir:path.join(__dirname,"../upload"),//在配置选项中尽量使用绝对路径，在option中的相对路径不是相对当前路径，是相对当前运行环境，找不到当前路径
+    keepExtensions:true,
+    
+  },
+  parsedMethods:['POST','PATCH',"PUT","DELETE"]
+}))
+
+
+
+
+
+
 
 
 
